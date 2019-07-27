@@ -5,7 +5,7 @@
 #include <ESP8266HTTPClient.h>
 #include <Servo.h>
 
-
+//insiialisasi variabel yang akan digunakan
 const char* ssid = "@wifi.id";
 const char* pass = "KokAndaMiskin";
 const char* apiKey = "aldiwemosapikey";
@@ -16,6 +16,7 @@ int lock_pos = 0;
 Servo door;
 Servo lock;
 
+//fungsi untuk memeriksa api key
 String checkCredential(){
   String pesan = "lanjut bro";
   if(server.hasArg("apikey") == false || server.arg("apikey") != apiKey ){
@@ -27,28 +28,33 @@ String checkCredential(){
   }
   return pesan;
 }
-
+//fungsi untuk setting upadte web service
 void setIP(){
+  // titik kembali
   startRequestToMyServer:
   String door = "";
   String lock = "";
   door += door_pos;
   lock += lock_pos;
   HTTPClient httpclient;
+  // set url web service
   httpclient.begin("http://alr.rajamitra.net/api/mc/handle"); //inisialisasi domain
-  httpclient.addHeader("ApiKey", apiKey); // inisialisasi apikey on header
+  // inisialisasi header yang akan diperiksa di web service
+  httpclient.addHeader("ApiKey", apiKey);// inisialisasi apikey on header
   httpclient.addHeader("door", door);
   httpclient.addHeader("lock", lock);
   //send request
   int httpCode = httpclient.GET();
   String payload = httpclient.getString();
-  
+  // cek response code dari server
   if(httpCode == 200 ){
+    // jika kode 200 ok
     Serial.print("\n\n[RESPONSE FROM MY SERVER]\n");
     Serial.print("HTTP Code: ");
     Serial.println(httpCode);
     Serial.println(payload);
   }else{
+    //jia tidak akan mengulang proses ke titik kembali
     Serial.println("Response Failed");
     Serial.print(payload);
     Serial.println();
@@ -58,11 +64,12 @@ void setIP(){
   httpclient.end();
   return;
 }
+// fungsi permintaan di url root
 void handleRoot(){
   String message = "Hi, you are here! i love you!";
   server.send(200, "text/plain", message);
 }
-
+// fungsi handle permintaan mengunci pintu dari fungsi handleAcion
 void handleLock(){
   Serial.println("Try to Lock");
   lock.write(0);
@@ -70,6 +77,7 @@ void handleLock(){
   String message = "The door is locked!";
   server.send(200, "text/plain", message);
 }
+// fungsi handle permintaan membukka kunci pintu dari fungsi handleAcion
 void handleUnlock(){
   Serial.println("Try to unLock");
   lock.write(80);
@@ -77,6 +85,8 @@ void handleUnlock(){
   String message = "The door is unlocked!";
   server.send(200, "text/plain", message);
 }
+
+//fungsi handle permintaan membuka pintu dari fungsi handleAcion
 void handleOpen(){
   Serial.println("Try to open");
   door.write(90);
@@ -84,6 +94,7 @@ void handleOpen(){
   String message = "The door is open!";
   server.send(200, "text/plain", message);
 }
+// fungsi handle permintaan menutpu pintu dari fungsi handleAcion
 void handleClose(){
   Serial.println("Try to close");
   door.write(0);
@@ -104,7 +115,7 @@ void handleCheck(){
   res += "}"; 
   server.send(200, "text/json", res);
 }
-
+// fungsi yang dipanggil ketika ada permintaan ke url http://ip/handleAction
 void handleAction(){
   String checking = checkCredential();
   String action = server.arg("action");
@@ -128,7 +139,7 @@ void handleAction(){
     server.send(401, "text/plain", checking);
   }
 }
-
+//handle url 404
 void handleNotFound(){
   String message = "File Not Found \n\n";
   message += "URI: ";
@@ -144,17 +155,20 @@ void handleNotFound(){
   server.send(404, "text/plain", message);
 }
 
-
+// fungsi yang perama kali di jalankan keika wemos dihidpukan 
 void setup() {
+  //menyaipakn serial moitor
   Serial.begin(115200);
   Serial.println(" ");
   Serial.println("Inisialisasi Door dan Lock di posisi 0");
+  //inisialisasi servo
   door.attach(D2);
   lock.attach(D3);
   door.write(0);
   lock.write(0);
   door_pos = 0;
   lock_pos = 0;
+  // menyiapkan koneksi wfif
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
   Serial.println(" ");
@@ -177,15 +191,17 @@ void setup() {
   if(MDNS.begin("esp8266")){
     Serial.println("MDNS responder started");
   }
-
+  // menyiapkan server di wemos
   server.on("/", handleRoot);
   server.on("/handleAction", handleAction);
   server.onNotFound(handleNotFound);
+  // server dimulai
   server.begin();
   setIP();
 }
-
+// fungsi yang dijalankan secara looping selama wemos hidup
 void loop() {
+  //cek jika sudah 3 menit update IP
   if(millis() > last + 300000){
     setIP();
     last = millis();
